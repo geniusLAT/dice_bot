@@ -32,6 +32,8 @@ def d20():
 
 Aloweded_symbols="0123456789 +-*/()d"
 def show_result(text:str):
+  text+="s"
+  text.replace('к','d')
   print("")
   formula = "d0()"
   if "d10()" in text:
@@ -55,8 +57,11 @@ def show_result(text:str):
   end_num=for_num_end
 
   while True:
-     if end_num+1>len(text)-1: break
-     if not text[end_num+1] in (Aloweded_symbols): break
+     if end_num+1==len(text): break
+     if not text[end_num+1] in (Aloweded_symbols): 
+      print(text[end_num+1] +" is not allowded")
+      end_num+=1
+      break
 
      end_num+=1
   start_num = for_num
@@ -73,10 +78,26 @@ def show_result(text:str):
   answer=toeval
 
   try:
-    while formula in toeval:
-      result=str(eval(formula))
+    c=102
+    while ("d10()" in toeval) or ("d8()" in toeval) or ("d4()" in toeval) or ("d12()" in toeval) or ("d20()" in toeval):
+      local_formula = "d0()"
+      if "d10()" in toeval:
+        local_formula="d10()"
+        print("<d10>")
+      if "d12()" in toeval:
+        local_formula="d12()"
+      if "d4()" in toeval:
+        local_formula="d4()"
+      if "d8()" in toeval:
+        local_formula="d8()"
+      if "d20()" in toeval:
+        local_formula="d20()"
+      c-=1
+      if c==0: break
+      result=str(eval(local_formula))
       print(result)
-      toeval=toeval.replace(formula,result,1)
+      toeval=toeval.replace(local_formula,result,1)
+      print(toeval)
     answer+="="+toeval
   except:
     raise Exception("bad formula")
