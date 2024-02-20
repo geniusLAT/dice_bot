@@ -8,44 +8,131 @@ bot=telebot.TeleBot(token)
 def start_message(message):
   bot.send_message(message.chat.id,"Привет ✌️ ")
 
-def d4():
-  random.seed(random.randint(1,4)) 
-  return str(random.randint(1,4))
+def From_DnD_to_Py(text:str):
+  num_letter="0123456789"
+  text=text.replace('к','d')
+  while ("d10()" in text) or ("d8()" in text) or ("d4()" in text) or ("d12()" in text) or ("d20()" in text) or ("d6()" in text):
+    formula = "d0()"
+    if "d10()" in text:
+      formula="d10()"
+    if "d12()" in text:
+      formula="d12()"
+    if "d4()" in text:
+      formula="d4()"
+    if "d8()" in text:
+      formula="d8()"
+    if "d20()" in text:
+      formula="d20()"
+    if "d6()" in text:
+      formula="d6()"
 
-def d10():
-   random.seed(random.randint(1,1000)) 
-   return str(random.randint(1,10))
+    end_num=start_num = text.find(formula)
+    
+    print("num:"+text[start_num:end_num])
+    
+    while True:
+      if start_num==0: break
+      if not text[start_num-1] in num_letter: break
+      start_num-=1
 
-def d8():
-  random.seed(random.randint(1,1000)) 
-  return str(random.randint(1,8))
+    print("num:"+text[start_num:end_num])
+
+    new_formula=formula[:-1]+text[start_num:end_num]+" )"
+    print(new_formula)
+    #for i in range(start_num,end_num):text[i]=" "
+
+    text=text.replace(text[start_num:end_num]+formula,new_formula,1)
+
+    #break
+    
 
 
-def d12():
-   random.seed(random.randint(1,1000)) 
-   return str(random.randint(1,12))
+  return text
 
 
-def d20():
-   random.seed(random.randint(1,1000)) 
-   return str(random.randint(1,20))
 
-Aloweded_symbols="0123456789 +-*/()d"
+#print(From_DnD_to_Py("dfdsf d10() sfsf"))
+#print(From_DnD_to_Py("sssd r5d10()ddd"))
+#print(From_DnD_to_Py("123d10()"))
+
+def find_local_formula(text:str):
+  local_formula = "d0()"
+  if "d10(" in text:
+    local_formula="d10("
+    
+  if "d12(" in text:
+    local_formula="d12("
+  if "d4(" in text:
+    local_formula="d4("
+  if "d8(" in text:
+    local_formula="d8("
+  if "d20(" in text:
+    local_formula="d20("
+  if "d6(" in text:
+    local_formula="d6("
+
+
+  lf_start=text.find(local_formula)
+  second_part= text.split(local_formula)[1]
+  print("second_part:"+second_part)
+  lf_end = second_part.find(")")
+  print(lf_end)
+  print(lf_start+len(local_formula)+lf_end)
+  print("local formula: "+text[lf_start:lf_start+len(local_formula)+lf_end+1])
+  if lf_end==-1: raise Exception("Wrong local formula")
+  return text[lf_start:lf_start+len(local_formula)+lf_end+1]
+
+#print(find_local_formula(" ahksdshd d10(55656) dfdfhh"))
+def dn(n,q=1):
+  r=0
+  
+  for i in range(q):
+    random.seed(random.randint(1,1000)) 
+    r+=random.randint(1,n)
+  return r
+def d4(q:int =1):
+  return str(dn(4,q))
+
+def d10(q:int =1):
+   
+   return str(dn(10,q))
+
+def d8(q:int =1):
+  
+  return str(dn(8,q))
+
+
+def d12(q:int =1):
+   return str(dn(12,q))
+
+
+
+def d20(q:int =1):
+   return str(dn(20,q))
+
+def d6(q:int =1):
+   return str(dn(6,q))
+
+
+Aloweded_symbols="0123456789 +-*/()dк"
 def show_result(text:str):
   text+="s"
-  text.replace('к','d')
+  #text=From_DnD_to_Py(text)
+  
   print("")
-  formula = "d0()"
-  if "d10()" in text:
-    formula="d10()"
-  if "d12()" in text:
-    formula="d12()"
-  if "d4()" in text:
-    formula="d4()"
-  if "d8()" in text:
-    formula="d8()"
-  if "d20()" in text:
-    formula="d20()"
+  formula = "d0("
+  if "d10(" in text:
+    formula="d10("
+  if "d12(" in text:
+    formula="d12("
+  if "d4(" in text:
+    formula="d4("
+  if "d8(" in text:
+    formula="d8("
+  if "d20(" in text:
+    formula="d20("
+  if "d6(" in text:
+    formula="d6("
 
 
   for_num = text.find(formula)
@@ -76,22 +163,11 @@ def show_result(text:str):
   print( toeval)
 
   answer=toeval
-
+  toeval=From_DnD_to_Py(toeval)
   try:
     c=102
-    while ("d10()" in toeval) or ("d8()" in toeval) or ("d4()" in toeval) or ("d12()" in toeval) or ("d20()" in toeval):
-      local_formula = "d0()"
-      if "d10()" in toeval:
-        local_formula="d10()"
-        print("<d10>")
-      if "d12()" in toeval:
-        local_formula="d12()"
-      if "d4()" in toeval:
-        local_formula="d4()"
-      if "d8()" in toeval:
-        local_formula="d8()"
-      if "d20()" in toeval:
-        local_formula="d20()"
+    while ("d10(" in toeval) or ("d8(" in toeval) or ("d4(" in toeval) or ("d12(" in toeval) or ("d20(" in toeval)or ("d6(" in toeval):
+      local_formula =find_local_formula(toeval)
       c-=1
       if c==0: break
       result=str(eval(local_formula))
@@ -131,10 +207,11 @@ def show_result(text:str):
 
 @bot.message_handler(content_types='text')
 def message_reply(message):
-    if ("d10()" in message.text) or ("d8()" in message.text) or ("d4()" in message.text) or ("d12()" in message.text) or ("d20()" in message.text) :
-      try:    bot.send_message(message.chat.id,show_result(message.text))
+    if ("d10()" in message.text) or ("d8()" in message.text) or ("d4()" in message.text) or ("d12()" in message.text) or ("d20()" in message.text) or ("d6()" in message.text) :
+      try:    bot.send_message(message.chat.id,show_result(message.text),reply_to_message_id=message.id)
       except Exception as e: print(e)
 bot.infinity_polling()
-        
-#print(show_result(" sdsd (2/3)+(3 + (5)+d20())*7+2**2 hdfhd"))
+
+
+#print(show_result(" sdsdt (2/3)+(3 + (5)+2d20())*7+2**2 hdfhd"))
 #print(show_result("d10()"))
