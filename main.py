@@ -114,7 +114,7 @@ def d6(q:int =1):
    return str(dn(6,q))
 
 
-Aloweded_symbols="0123456789 +-*/()dк"
+Aloweded_symbols="0123456789 +-*/()dк."
 def show_result(text:str):
   text+="s"
   #text=From_DnD_to_Py(text)
