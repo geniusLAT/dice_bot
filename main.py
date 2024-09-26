@@ -11,7 +11,7 @@ def start_message(message):
 def From_DnD_to_Py(text:str):
   num_letter="0123456789"
   text=text.replace('к','d')
-  while ("d10()" in text) or ("d8()" in text) or ("d4()" in text) or ("d12()" in text) or ("d20()" in text) or ("d6()" in text):
+  while ("d10()" in text) or ("d8()" in text) or ("d4()" in text) or ("d12()" in text) or ("d20()" in text) or ("d6()" in text)or ("d100()" in text):
     formula = "d0()"
     if "d10()" in text:
       formula="d10()"
@@ -25,6 +25,8 @@ def From_DnD_to_Py(text:str):
       formula="d20()"
     if "d6()" in text:
       formula="d6()"
+    if "d100()" in text:
+      formula="d100()"
 
     end_num=start_num = text.find(formula)
     
@@ -70,6 +72,8 @@ def find_local_formula(text:str):
     local_formula="d20("
   if "d6(" in text:
     local_formula="d6("
+  if "d100(" in text:
+    local_formula="d100("
 
 
   lf_start=text.find(local_formula)
@@ -113,6 +117,9 @@ def d20(q:int =1):
 def d6(q:int =1):
    return str(dn(6,q))
 
+def d100(q:int =1):
+   return str(dn(100,q))
+
 
 Aloweded_symbols="0123456789 +-*/()dк."
 def show_result(text:str):
@@ -133,6 +140,8 @@ def show_result(text:str):
     formula="d20("
   if "d6(" in text:
     formula="d6("
+  if "d100(" in text:
+    formula="d100("
 
 
   for_num = text.find(formula)
@@ -166,7 +175,7 @@ def show_result(text:str):
   toeval=From_DnD_to_Py(toeval)
   try:
     c=102
-    while ("d10(" in toeval) or ("d8(" in toeval) or ("d4(" in toeval) or ("d12(" in toeval) or ("d20(" in toeval)or ("d6(" in toeval):
+    while ("d10(" in toeval) or ("d8(" in toeval) or ("d4(" in toeval) or ("d12(" in toeval) or ("d20(" in toeval)or ("d6(" in toeval)or ("d100(" in toeval):
       local_formula =find_local_formula(toeval)
       c-=1
       if c==0: break
@@ -207,7 +216,8 @@ def show_result(text:str):
 
 @bot.message_handler(content_types='text')
 def message_reply(message):
-    if ("d10()" in message.text) or ("d8()" in message.text) or ("d4()" in message.text) or ("d12()" in message.text) or ("d20()" in message.text) or ("d6()" in message.text) :
+    print("msg")
+    if ("d10()" in message.text) or ("d8()" in message.text) or ("d4()" in message.text) or ("d12()" in message.text) or ("d20()" in message.text) or ("d6()" in message.text) or ("d100()" in message.text) :
       try:    bot.send_message(message.chat.id,show_result(message.text),reply_to_message_id=message.id)
       except Exception as e: print(e)
 bot.infinity_polling()
