@@ -2,6 +2,10 @@ import telebot
 import random
 file=open("token.txt",'r')
 token=file.read()#''
+
+for letter in token:
+  print(f" letter {letter} :{ord(letter)}")
+
 file.close()
 bot=telebot.TeleBot(token)
 @bot.message_handler(commands=['start'])
