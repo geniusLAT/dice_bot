@@ -1,7 +1,7 @@
 import telebot
 import random
 file=open("token.txt",'r')
-token=file.read()#''
+token=file.read().strip()#''
 
 for letter in token:
   print(f" letter {letter} :{ord(letter)}")
