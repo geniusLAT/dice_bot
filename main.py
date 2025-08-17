@@ -91,7 +91,6 @@ def dn(n,q=1):
   r=0
   
   for i in range(q):
-    random.seed(random.randint(1,1000)) 
     r+=random.randint(1,n)
   return r
 def d4(q:int =1):
