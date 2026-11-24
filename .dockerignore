@@ -1,0 +1,5 @@
+token.txt
+.git
+.idea
+.venv
+**/__pycache__

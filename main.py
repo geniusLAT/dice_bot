@@ -1,226 +1,179 @@
+"""Telegram entry point for the D&D dice bot."""
+
+from collections import deque
+from dataclasses import dataclass, field
+import logging
+from pathlib import Path
+from threading import Lock
+from time import monotonic
+
 import telebot
-import random
-file=open("token.txt",'r')
-token=file.read().strip()#''
-file.close()
-bot=telebot.TeleBot(token)
-@bot.message_handler(commands=['start'])
-def start_message(message):
-  bot.send_message(message.chat.id,"Привет ✌️ ")
+from telebot.apihelper import ApiException
+from telebot.types import Message
 
-def From_DnD_to_Py(text:str):
-  num_letter="0123456789"
-  text=text.replace('к','d')
-  while ("d10()" in text) or ("d8()" in text) or ("d4()" in text) or ("d12()" in text) or ("d20()" in text) or ("d6()" in text)or ("d100()" in text):
-    formula = "d0()"
-    if "d10()" in text:
-      formula="d10()"
-    if "d12()" in text:
-      formula="d12()"
-    if "d4()" in text:
-      formula="d4()"
-    if "d8()" in text:
-      formula="d8()"
-    if "d20()" in text:
-      formula="d20()"
-    if "d6()" in text:
-      formula="d6()"
-    if "d100()" in text:
-      formula="d100()"
-
-    end_num=start_num = text.find(formula)
-    
-    print("num:"+text[start_num:end_num])
-    
-    while True:
-      if start_num==0: break
-      if not text[start_num-1] in num_letter: break
-      start_num-=1
-
-    print("num:"+text[start_num:end_num])
-
-    new_formula=formula[:-1]+text[start_num:end_num]+" )"
-    print(new_formula)
-    #for i in range(start_num,end_num):text[i]=" "
-
-    text=text.replace(text[start_num:end_num]+formula,new_formula,1)
-
-    #break
-    
+from dice_parser import DICE_SIDES, MAX_EXPRESSION_LENGTH
+from service import find_formulas, roll_replies
+from telegram_replies import ReplySender
 
 
-  return text
+TOKEN_PATH = Path("token.txt")
+MAX_FORMULA_FILE_BYTES = 4 * MAX_EXPRESSION_LENGTH
+REQUESTS_PER_WINDOW = 5
+RATE_WINDOW_SECONDS = 10
+RATE_LIMIT_MESSAGE = "Слишком много запросов. Попробуй чуть позже."
+HELP = (
+    "Пиши формулы прямо в сообщении. Например, <code>Бросок d20</code>.\n\n"
+    "<b>Кубики</b>\n"
+    f"{', '.join(f'<code>d{sides}</code>' for sides in DICE_SIDES)}\n"
+    "<code>d20</code> или <code>d20()</code> — один бросок.\n"
+    "<code>3d6</code>, <code>3d6()</code> или <code>d6(3)</code> — сумма трёх бросков.\n"
+    "<code>2к20</code> или <code>2к20()</code> — запись с кириллической <code>к</code>.\n\n"
+    "<b>Формулы</b>\n"
+    "<code>3d6+5</code> — модификатор. <code>(2d6()+5)*2</code> — скобки.\n"
+    "Операции <code>+ - * / // **</code>. <code>//</code> округляет вниз, <code>**</code> возводит в степень. "
+    "В десятичных числах используй точку, например <code>d20+1.5</code>.\n\n"
+    "<b>Выбор кубиков</b>\n"
+    "<code>d20kh</code> — преимущество, <code>d20kl</code> — помеха. Оба варианта бросают два d20 и оставляют один.\n"
+    "<code>d20kh+5</code> = <code>2d20kh1+5</code>. <code>d20kl+5</code> = <code>2d20kl1+5</code>.\n"
+    "<code>4d6kh3</code> оставит три наибольших, <code>4d6kl2</code> — два наименьших.\n"
+    "🎲 отмечает обычный бросок. 🔥 и 💀 отмечают натуральные 20 и 1 среди оставленных d20. "
+    "Отброшенные кубики зачёркнуты, итог выделен жирным.\n\n"
+    "<b>Несколько бросков и подписи</b>\n"
+    "<code>d20; 2d6+3</code> — два отдельных броска. Можно писать их на разных строках, "
+    "в том числе в нумерованном списке.\n"
+    "<code>2d6 — Урон мечом</code> — подпись после тире с пробелами до конца строки.\n\n"
+    f"Формулы до {MAX_EXPRESSION_LENGTH} символов можно прислать файлом <code>.txt</code> в UTF-8. "
+    "Длинный результат придёт файлом.\n\n"
+    "<code>/start</code> — приветствие. <code>/help</code> — эта справка."
+)
 
 
-
-#print(From_DnD_to_Py("dfdsf d10() sfsf"))
-#print(From_DnD_to_Py("sssd r5d10()ddd"))
-#print(From_DnD_to_Py("123d10()"))
-
-def find_local_formula(text:str):
-  local_formula = "d0()"
-  if "d10(" in text:
-    local_formula="d10("
-    
-  if "d12(" in text:
-    local_formula="d12("
-  if "d4(" in text:
-    local_formula="d4("
-  if "d8(" in text:
-    local_formula="d8("
-  if "d20(" in text:
-    local_formula="d20("
-  if "d6(" in text:
-    local_formula="d6("
-  if "d100(" in text:
-    local_formula="d100("
+@dataclass
+class UserRequests:
+    accepted: deque[float] = field(default_factory=deque)
+    last_notice: float = float("-inf")
 
 
-  lf_start=text.find(local_formula)
-  second_part= text.split(local_formula)[1]
-  print("second_part:"+second_part)
-  lf_end = second_part.find(")")
-  print(lf_end)
-  print(lf_start+len(local_formula)+lf_end)
-  print("local formula: "+text[lf_start:lf_start+len(local_formula)+lf_end+1])
-  if lf_end==-1: raise Exception("Wrong local formula")
-  return text[lf_start:lf_start+len(local_formula)+lf_end+1]
+class RateLimiter:
+    def __init__(self):
+        self.users: dict[int, UserRequests] = {}
+        self.next_cleanup = 0.0
+        self.lock = Lock()
 
-#print(find_local_formula(" ahksdshd d10(55656) dfdfhh"))
-def dn(n,q=1):
-  r=0
-  
-  for i in range(q):
-    r+=random.randint(1,n)
-  return r
-def d4(q:int =1):
-  return str(dn(4,q))
+    def check(self, user_id: int) -> tuple[bool, bool]:
+        """Return whether to allow the request and whether to notify about rejection."""
+        with self.lock:
+            now = monotonic()
+            cutoff = now - RATE_WINDOW_SECONDS
+            if now >= self.next_cleanup:
+                self.users = {
+                    user: requests
+                    for user, requests in self.users.items()
+                    if requests.accepted[-1] > cutoff or requests.last_notice > cutoff
+                }
+                self.next_cleanup = now + RATE_WINDOW_SECONDS
 
-def d10(q:int =1):
-   
-   return str(dn(10,q))
-
-def d8(q:int =1):
-  
-  return str(dn(8,q))
-
-
-def d12(q:int =1):
-   return str(dn(12,q))
+            requests = self.users.setdefault(user_id, UserRequests())
+            while requests.accepted and requests.accepted[0] <= cutoff:
+                requests.accepted.popleft()
+            if len(requests.accepted) < REQUESTS_PER_WINDOW:
+                requests.accepted.append(now)
+                return True, False
+            if requests.last_notice <= cutoff:
+                requests.last_notice = now
+                return False, True
+            return False, False
 
 
-
-def d20(q:int =1):
-   return str(dn(20,q))
-
-def d6(q:int =1):
-   return str(dn(6,q))
-
-def d100(q:int =1):
-   return str(dn(100,q))
-
-
-Aloweded_symbols="0123456789 +-*/()dк."
-def show_result(text:str):
-  text+="s"
-  #text=From_DnD_to_Py(text)
-  
-  print("")
-  formula = "d0("
-  if "d10(" in text:
-    formula="d10("
-  if "d12(" in text:
-    formula="d12("
-  if "d4(" in text:
-    formula="d4("
-  if "d8(" in text:
-    formula="d8("
-  if "d20(" in text:
-    formula="d20("
-  if "d6(" in text:
-    formula="d6("
-  if "d100(" in text:
-    formula="d100("
+def read_token(path: Path) -> str:
+    try:
+        token = path.read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeError):
+        raise SystemExit(f"Не удалось прочитать токен из {path}.") from None
+    if not token:
+        raise SystemExit(f"Файл {path} пуст.")
+    number, separator, secret = token.partition(":")
+    valid_id = number.isascii() and number.isdecimal()
+    valid_secret = secret and secret.isascii() and all(char.isalnum() or char in "_-" for char in secret)
+    if not (separator and valid_id and valid_secret):
+        raise SystemExit(f"Неверный формат токена в {path}.")
+    return token
 
 
-  for_num = text.find(formula)
-  for_num_end = for_num+len(formula)
-  print(for_num)
-  toeval=text[for_num:for_num_end]
-  print( toeval)
+def create_bot(token: str, *, threaded: bool = True) -> telebot.TeleBot:
+    bot = telebot.TeleBot(token, threaded=threaded)
+    limiter = RateLimiter()
+    sender = ReplySender(bot, threaded=threaded)
 
-  end_num=for_num_end
+    def allow_request(message: Message) -> bool:
+        if message.sender_chat is not None:
+            user_id = message.sender_chat.id
+        else:
+            user_id = message.from_user.id if message.from_user is not None else message.chat.id
+        allowed, notify = limiter.check(user_id)
+        if notify:
+            sender.submit(message, (RATE_LIMIT_MESSAGE,))
+        return allowed
 
-  while True:
-     if end_num+1==len(text): break
-     if not text[end_num+1] in (Aloweded_symbols): 
-      print(text[end_num+1] +" is not allowded")
-      end_num+=1
-      break
+    @bot.message_handler(commands=["start", "help"])
+    def send_help(message: Message) -> None:
+        command, separator, recipient = message.text.split(maxsplit=1)[0][1:].partition("@")
+        if separator and (not recipient or recipient.casefold() != (bot.user.username or "").casefold()):
+            return
+        if allow_request(message):
+            sender.submit(message, (HELP if command == "help" else "Привет ✌️ ",))
 
-     end_num+=1
-  start_num = for_num
-  while True:
-     if start_num-1==-1: break
-     if not text[start_num-1] in (Aloweded_symbols): break
+    @bot.message_handler(content_types=["text"])
+    def roll(message: Message) -> None:
+        formulas = find_formulas(message.text)
+        if formulas and allow_request(message):
+            sender.submit(message, roll_replies(formulas))
 
-     start_num-=1
+    @bot.message_handler(
+        content_types=["document"],
+        func=lambda message: (message.document.file_name or "").lower().endswith(".txt"),
+    )
+    def roll_file(message: Message) -> None:
+        if not allow_request(message):
+            return
+        document = message.document
+        oversized = f"Файл должен занимать не больше {MAX_FORMULA_FILE_BYTES} байт."
+        if document.file_size is not None and document.file_size > MAX_FORMULA_FILE_BYTES:
+            sender.submit(message, (oversized,))
+            return
+        try:
+            file = bot.get_file(document.file_id)
+            size = file.file_size if file.file_size is not None else document.file_size
+            if size is None or not file.file_path:
+                sender.submit(message, ("Не удалось получить файл.",))
+                return
+            if size > MAX_FORMULA_FILE_BYTES:
+                sender.submit(message, (oversized,))
+                return
+            content = bot.download_file(file.file_path)
+        except (ApiException, OSError):
+            sender.submit(message, ("Не удалось скачать файл.",))
+            return
+        if len(content) > MAX_FORMULA_FILE_BYTES:
+            sender.submit(message, (oversized,))
+            return
+        try:
+            text = content.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            sender.submit(message, ("Сохрани .txt в кодировке UTF-8.",))
+            return
+        formulas = find_formulas(text)
+        replies = roll_replies(formulas) if formulas else ["В файле нет формул с кубиками."]
+        sender.submit(message, replies)
 
-
-  toeval=text[start_num:end_num]
-  print( toeval)
-
-  answer=toeval
-  toeval=From_DnD_to_Py(toeval)
-  try:
-    c=102
-    while ("d10(" in toeval) or ("d8(" in toeval) or ("d4(" in toeval) or ("d12(" in toeval) or ("d20(" in toeval)or ("d6(" in toeval)or ("d100(" in toeval):
-      local_formula =find_local_formula(toeval)
-      c-=1
-      if c==0: break
-      result=str(eval(local_formula))
-      print(result)
-      toeval=toeval.replace(local_formula,result,1)
-      print(toeval)
-    answer+="="+toeval
-  except:
-    raise Exception("bad formula")
-
-  try:
-    result=str(eval(toeval))
-    if result!=toeval:
-      answer +="="+result
-  except Exception as e:
-    print(str(e))
-   
-    if ("never closed" in str(e)):
-      answer+='\n Забыли закрыть скобку'
-    if ( "Perhaps you forgot a comma" in str(e)):
-      answer+='\n Тут пустое действие у скобки, оно не считается'
-    if ( "unsupported operand type" in str(e)):
-      answer+='\n Тут пустое выражение вскобках, оно не считается'
-    if ( "unmatched ')'" in str(e)):
-      answer+='\n Забыли открыть скобку'
-    if ( "invalid syntax ')'" in str(e)):
-      answer+='\n Математическая проблема'
-    
-  print(answer)
-  return str(answer)
-   
-
-    
-    
-   
-
-
-@bot.message_handler(content_types='text')
-def message_reply(message):
-    print("msg")
-    if ("d10()" in message.text) or ("d8()" in message.text) or ("d4()" in message.text) or ("d12()" in message.text) or ("d20()" in message.text) or ("d6()" in message.text) or ("d100()" in message.text) :
-      try:    bot.send_message(message.chat.id,show_result(message.text),reply_to_message_id=message.id)
-      except Exception as e: print(e)
-bot.infinity_polling()
+    return bot
 
 
-#print(show_result(" sdsdt (2/3)+(3 + (5)+2d20())*7+2**2 hdfhd"))
-#print(show_result("d10()"))
+def main() -> None:
+    bot = create_bot(read_token(TOKEN_PATH))
+    telebot.logger.setLevel(logging.INFO)
+    bot.infinity_polling(allowed_updates=["message"])
+
+
+if __name__ == "__main__":
+    main()
